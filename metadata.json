@@ -1,0 +1,6 @@
+{
+  "name": "FEMUR — Emergency-Care Coordination Platform",
+  "description": "Emergency-care coordination platform for Nigeria. Locate verified facilities, coordinate ambulance dispatch, and explore hospital-verified assistance.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

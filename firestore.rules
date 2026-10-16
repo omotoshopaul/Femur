@@ -1,0 +1,213 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == "omotoshopaul688@gmail.com"
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isHospitalStaff(orgId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'hospital' &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.organizationId == orgId;
+    }
+
+    // 1. Users collection: users/{uid}
+    match /users/{uid} {
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin();
+
+      allow create: if isOwner(uid) && isValidId(uid) &&
+        request.resource.data.keys().hasAll(['displayName', 'email', 'role', 'verificationStatus', 'createdAt']) &&
+        request.resource.data.role in ['patient', 'hospital', 'ambulance_provider', 'sponsor'] &&
+        (
+          (request.resource.data.role == 'patient' && request.resource.data.verificationStatus in ['not_required', 'approved']) ||
+          (request.resource.data.role in ['hospital', 'ambulance_provider', 'sponsor'] && request.resource.data.verificationStatus == 'pending')
+        );
+
+      allow update: if isOwner(uid) &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.verificationStatus == resource.data.verificationStatus &&
+        request.resource.data.createdAt == resource.data.createdAt
+        || isAdmin();
+
+      allow delete: if isOwner(uid) || isAdmin();
+    }
+
+    // 2. Organizations collection: organizations/{orgId}
+    match /organizations/{orgId} {
+      allow get: if true; // Public read for facility discovery and case creation
+      allow list: if true;
+
+      allow create: if isSignedIn() && isValidId(orgId) &&
+        request.resource.data.ownerUid == request.auth.uid &&
+        request.resource.data.verificationStatus == 'pending' &&
+        request.resource.data.keys().hasAll(['name', 'type', 'state', 'lga', 'ownerUid', 'verificationStatus', 'createdAt']) &&
+        request.resource.data.type in ['hospital', 'ambulance_provider', 'sponsor'];
+
+      allow update: if isAdmin() || (
+        isSignedIn() && resource.data.ownerUid == request.auth.uid &&
+        request.resource.data.verificationStatus == resource.data.verificationStatus &&
+        request.resource.data.ownerUid == resource.data.ownerUid
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // 3. Patient Profiles collection: patientProfiles/{uid}
+    match /patientProfiles/{uid} {
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin();
+
+      allow create, update: if isOwner(uid) && isValidId(uid) &&
+        request.resource.data.keys().hasAll(['consentGivenAt']);
+
+      allow delete: if isOwner(uid) || isAdmin();
+
+      match /people/{personId} {
+        allow read, write: if isOwner(uid) && isValidId(personId);
+      }
+    }
+
+    // 4. Requests collection: requests/{requestId}
+    match /requests/{requestId} {
+      allow get: if isSignedIn() && (
+        resource.data.createdByUid == request.auth.uid ||
+        request.auth.uid in resource.data.sharedWith ||
+        isAdmin()
+      );
+
+      allow list: if isSignedIn() && (
+        resource.data.createdByUid == request.auth.uid ||
+        request.auth.uid in resource.data.sharedWith ||
+        isAdmin()
+      );
+
+      allow create: if isSignedIn() && isValidId(requestId) &&
+        request.resource.data.createdByUid == request.auth.uid &&
+        request.resource.data.status in ['pending', 'matched', 'in_progress', 'completed', 'cancelled'] &&
+        request.resource.data.keys().hasAll(['createdByUid', 'type', 'status', 'needSummary', 'locationText', 'sharedWith', 'createdAt']);
+
+      allow update: if isSignedIn() && (
+        resource.data.createdByUid == request.auth.uid ||
+        request.auth.uid in resource.data.sharedWith ||
+        isAdmin()
+      );
+
+      allow delete: if isSignedIn() && (
+        resource.data.createdByUid == request.auth.uid ||
+        isAdmin()
+      );
+    }
+
+    // 5. Pilot Requests collection: pilotRequests/{reqId}
+    // Anyone may submit a pilot interest request; only admins may read or update; nobody may delete
+    match /pilotRequests/{reqId} {
+      allow create: if isValidId(reqId) &&
+        request.resource.data.keys().hasAll(['orgName', 'orgType', 'state', 'lga', 'contactPerson', 'email', 'agreedToTerms', 'status', 'createdAt']) &&
+        request.resource.data.status == 'new' &&
+        request.resource.data.agreedToTerms == true &&
+        request.resource.data.orgName is string && request.resource.data.orgName.size() <= 200 &&
+        request.resource.data.email is string && request.resource.data.email.size() <= 200;
+
+      allow get, list, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // 6. Cases collection: cases/{caseId}
+    match /cases/{caseId} {
+      allow get: if isSignedIn() && (
+        resource.data.patientUid == request.auth.uid ||
+        isHospitalStaff(resource.data.hospitalOrgId) ||
+        isAdmin()
+      );
+
+      allow list: if isSignedIn();
+
+      allow create: if isSignedIn() && isValidId(caseId) &&
+        request.resource.data.patientUid == request.auth.uid &&
+        request.resource.data.status in ['draft', 'awaiting_hospital_record'] &&
+        request.resource.data.keys().hasAll(['patientUid', 'patientNameClaimed', 'hospitalOrgId', 'status', 'consent', 'createdAt']);
+
+      allow update: if isSignedIn() && (
+        // Patient can update when draft or cancel before live
+        (resource.data.patientUid == request.auth.uid &&
+         (request.resource.data.status == resource.data.status ||
+          (resource.data.status == 'awaiting_hospital_record' && request.resource.data.status == 'cancelled'))) ||
+        // Admitting hospital staff can update record and status
+        isHospitalStaff(resource.data.hospitalOrgId) ||
+        // Admin can review or update any case
+        isAdmin()
+      );
+
+      allow delete: if (isSignedIn() && resource.data.patientUid == request.auth.uid && resource.data.status == 'draft') || isAdmin();
+
+      // Audit subcollection: cases/{caseId}/audit/{id}
+      match /audit/{auditId} {
+        allow read: if isSignedIn() && (
+          get(/databases/$(database)/documents/cases/$(caseId)).data.patientUid == request.auth.uid ||
+          isHospitalStaff(get(/databases/$(database)/documents/cases/$(caseId)).data.hospitalOrgId) ||
+          isAdmin()
+        );
+        allow create: if isSignedIn();
+        allow update, delete: if false;
+      }
+    }
+
+    // 7. Public Campaigns collection: publicCampaigns/{campaignId}
+    // Public read for shareable campaign pages
+    match /publicCampaigns/{campaignId} {
+      allow get, list: if true;
+      allow create, update: if isSignedIn() || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 8. Case Wallets & Append-Only Ledger: caseWallets/{caseId}
+    match /caseWallets/{caseId} {
+      allow get: if isSignedIn() || true; // Readable by stakeholders
+      allow create, update: if isSignedIn() || isAdmin();
+      allow delete: if false;
+
+      match /ledger/{entryId} {
+        allow get, list: if isSignedIn() || true;
+        allow create: if isValidId(entryId) &&
+          request.resource.data.keys().hasAll(['type', 'amountKobo', 'sourceName', 'createdAt']) &&
+          request.resource.data.amountKobo is int && request.resource.data.amountKobo > 0;
+        allow update, delete: if false; // Append-only!
+      }
+    }
+
+    // 9. Donations collection: donations/{donationId}
+    match /donations/{donationId} {
+      allow create: if isValidId(donationId) &&
+        request.resource.data.keys().hasAll(['caseId', 'amountKobo', 'simulated', 'createdAt']) &&
+        request.resource.data.simulated == true;
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // 10. Care Fund collection: careFund/{fundId}
+    match /careFund/{fundId} {
+      allow get: if true;
+      allow update, create: if isSignedIn() || isAdmin();
+      allow delete: if false;
+    }
+  }
+}

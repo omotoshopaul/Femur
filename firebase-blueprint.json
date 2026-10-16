@@ -1,0 +1,114 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role and verification state",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "format": "email", "maxLength": 150 },
+        "role": {
+          "type": "string",
+          "enum": ["patient", "hospital", "ambulance_provider", "sponsor", "admin"]
+        },
+        "verificationStatus": {
+          "type": "string",
+          "enum": ["not_required", "pending", "approved", "rejected"]
+        },
+        "organizationId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["displayName", "email", "role", "verificationStatus", "createdAt"]
+    },
+    "Organization": {
+      "title": "Organization",
+      "description": "Hospital, ambulance provider, or sponsor organization entity",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 150 },
+        "type": {
+          "type": "string",
+          "enum": ["hospital", "ambulance_provider", "sponsor"]
+        },
+        "state": { "type": "string", "maxLength": 100 },
+        "lga": { "type": "string", "maxLength": 100 },
+        "ownerUid": { "type": "string", "maxLength": 128 },
+        "verificationStatus": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected"]
+        },
+        "rejectionReason": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "type", "state", "lga", "ownerUid", "verificationStatus", "createdAt"]
+    },
+    "PatientProfile": {
+      "title": "PatientProfile",
+      "description": "Private contact and consent record for patients",
+      "type": "object",
+      "properties": {
+        "phone": { "type": "string", "maxLength": 30 },
+        "emergencyContact": { "type": "string", "maxLength": 100 },
+        "consentGivenAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["consentGivenAt"]
+    },
+    "Person": {
+      "title": "Person",
+      "description": "Family member or dependent profile linked to patient",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "relationship": { "type": "string", "maxLength": 50 },
+        "bloodGroup": { "type": "string", "maxLength": 10 },
+        "allergies": { "type": "string", "maxLength": 300 },
+        "notes": { "type": "string", "maxLength": 500 }
+      },
+      "required": ["name", "relationship"]
+    },
+    "EmergencyRequest": {
+      "title": "EmergencyRequest",
+      "description": "Emergency coordination request skeleton",
+      "type": "object",
+      "properties": {
+        "createdByUid": { "type": "string", "maxLength": 128 },
+        "type": {
+          "type": "string",
+          "enum": ["care", "transport", "assistance"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "matched", "in_progress", "completed", "cancelled"]
+        },
+        "needSummary": { "type": "string", "maxLength": 500 },
+        "locationText": { "type": "string", "maxLength": 200 },
+        "sharedWith": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["createdByUid", "type", "status", "needSummary", "locationText", "sharedWith", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User account records with role and approval state"
+    },
+    "/organizations/{orgId}": {
+      "schema": { "$ref": "#/entities/Organization" },
+      "description": "Registered healthcare and transport organizations"
+    },
+    "/patientProfiles/{uid}": {
+      "schema": { "$ref": "#/entities/PatientProfile" },
+      "description": "Private patient profile settings and consent timestamp"
+    },
+    "/patientProfiles/{uid}/people/{personId}": {
+      "schema": { "$ref": "#/entities/Person" },
+      "description": "Dependents and family medical details managed by the patient"
+    },
+    "/requests/{requestId}": {
+      "schema": { "$ref": "#/entities/EmergencyRequest" },
+      "description": "Coordination requests shared with relevant responders"
+    }
+  }
+}

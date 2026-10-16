@@ -1,0 +1,169 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --green-900: #0F3F24;
+    --green-950: #0A2E19;
+    --green-600: #4F6B58;
+    --bg: #FDFDFB;
+    --surface: #FFFFFF;
+    --surface-muted: #EEF3EC;
+    --border: #CFDACF;
+    --accent-plum: #3B1239;
+    --danger: #B42318;
+    --warning: #9A6700;
+    --success: #247447;
+    --info: #245B91;
+    --surface-sage-100: #E1F2E0;
+    --surface-sky-300: #B6CFD6;
+    --surface-sage-300: #B0DAB8;
+    --on-green: #FFFFFF;
+
+    --font-serif: 'Newsreader', Georgia, Cambria, 'Times New Roman', serif;
+    --font-sans: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  html {
+    background-color: var(--bg);
+    color: var(--green-900);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--green-900);
+    min-height: 100vh;
+    font-size: 17px;
+    line-height: 1.55;
+  }
+
+  /* Universal accessible focus ring (WCAG 2.2 AA) */
+  :focus-visible {
+    outline: 2px solid var(--green-900);
+    outline-offset: 2px;
+  }
+
+  /* Respect prefers-reduced-motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* Typography Utility Classes */
+.font-editorial-serif {
+  font-family: var(--font-serif);
+  font-optical-sizing: auto;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+}
+
+.font-editorial-heading-2 {
+  font-family: var(--font-serif);
+  font-optical-sizing: auto;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.font-editorial-heading-3 {
+  font-family: var(--font-serif);
+  font-optical-sizing: auto;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.font-interface-sans {
+  font-family: var(--font-sans);
+}
+
+/* Fluid responsive typography scales */
+.text-scale-display {
+  font-size: clamp(2.75rem, 5vw, 4.5rem); /* 44px -> 72px */
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+}
+
+.text-scale-h2 {
+  font-size: clamp(2rem, 3.5vw, 3.25rem); /* 32px -> 52px */
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+}
+
+.text-scale-h3 {
+  font-size: clamp(1.375rem, 2vw, 1.75rem); /* 22px -> 28px */
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.text-scale-body {
+  font-size: clamp(1.0625rem, 1.15vw, 1.125rem); /* 17px -> 18px */
+  line-height: 1.55;
+}
+
+.text-scale-small {
+  font-size: 14px; /* Strictly never smaller than 14px */
+  line-height: 1.45;
+}
+
+.text-scale-eyebrow {
+  font-size: 15px; /* 15px sans, normal case, not uppercase */
+  line-height: 1.35;
+  font-weight: 500;
+}
+
+/* Page gutters & container constraints */
+.femur-container {
+  width: 100%;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+@media (min-width: 768px) {
+  .femur-container {
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .femur-container {
+    padding-left: 72px;
+    padding-right: 72px;
+  }
+}
+
+/* Hairline border utility */
+.border-hairline {
+  border: 1px solid var(--border);
+}
+
+.border-t-hairline {
+  border-top: 1px solid var(--border);
+}
+
+.border-b-hairline {
+  border-bottom: 1px solid var(--border);
+}
+
+.border-l-hairline {
+  border-left: 1px solid var(--border);
+}
+
+.border-r-hairline {
+  border-right: 1px solid var(--border);
+}
+
+.divide-hairline > * + * {
+  border-color: var(--border);
+}
